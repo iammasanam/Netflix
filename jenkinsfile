@@ -29,7 +29,12 @@ pipeline {
         stage("quality gate") {
             steps {
                 script {
-                    waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token'
+                    def qg = waitForQualityGate(credentialsId: 'Sonar-token')
+                    if (qg.status == 'ERROR') {
+                        currentBuild.result = 'FAILURE'
+                    } else if (qg.status == 'WARN' || qg.status == 'OK') {
+                        currentBuild.result = 'SUCCESS'
+                    }
                 }
             }
         }
