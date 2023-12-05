@@ -30,6 +30,11 @@ pipeline {
             steps {
                 script {
                     def qg = waitForQualityGate(credentialsId: 'Sonar-token')
+
+                    while (qg.status == 'IN_PROGRESS') {
+                        sleep(10)
+                        qg = waitForQualityGate(credentialsId: 'Sonar-token')
+                    }
                     if (qg.status == 'ERROR') {
                         currentBuild.result = 'FAILURE'
                     } else if (qg.status == 'WARN' || qg.status == 'OK') {
