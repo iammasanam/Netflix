@@ -80,8 +80,6 @@ pipeline {
         }
         stage('Deploy to container') {
             steps {
-                sh "docker stop netflix || true"
-                sh "docker rm netflix || true"
                 sh "docker run -d -p 8081:80 --name netflix srikanth2008/netflix:${BUILD_NUMBER}"
             }
         }
@@ -92,7 +90,7 @@ pipeline {
             }
             steps {
                 withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-                    dir('Netflix/netflix-clone-project-manifests') {
+                    dir('Netflix/Manifests-Repo) {
                         sh '''
                             git config user.email "masanamsrikanth7@gmail.com"
                             git config user.name "Srikanth Masanam"
