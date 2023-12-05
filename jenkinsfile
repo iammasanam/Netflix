@@ -1,46 +1,46 @@
-pipeline{
+pipeline {
     agent any
-    tools{
+    tools {
         jdk 'jdk17'
         nodejs 'node16'
     }
     environment {
-        SCANNER_HOME=tool 'sonar-scanner'
+        SCANNER_HOME = tool 'sonar-scanner'
     }
     stages {
-        stage('clean workspace'){
-            steps{
+        stage('clean workspace') {
+            steps {
                 cleanWs()
             }
         }
-        stage('Checkout from Git'){
-            steps{
-                git branch: 'main', url: 'https://github.com/Aj7Ay/Netflix-clone.git'
+        stage('Checkout from Git') {
+            steps {
+                sh 'echo passed'
+                git branch: 'main', url: 'https://github.com/iammasanam/Netflix'
             }
         }
-        stage("Sonarqube Analysis "){
-            steps{
+        stage("Sonarqube Analysis ") {
+            steps {
                 withSonarQubeEnv('sonar-server') {
-                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Netflix \
-                    -Dsonar.projectKey=Netflix '''
+                    sh "$SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Netflix -Dsonar.projectKey=Netflix"
                 }
             }
         }
-        stage("quality gate"){
-           steps {
+        stage("quality gate") {
+            steps {
                 script {
-                    waitForQualityGate credentialsId: 'Sonar-token', unstable: 1 
+                    waitForQualityGate(credentialsId: 'Sonar-token', unstable: 1)
                 }
-            } 
+            }
         }
         stage('Install Dependencies') {
             steps {
-                sh "npm install"
+                 sh "npm install"
             }
         }
         stage('OWASP FS SCAN') {
             steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+                dependencyCheck additionalArguments: '--scan . --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
@@ -49,62 +49,64 @@ pipeline{
                 sh "trivy fs . > trivyfs.txt"
             }
         }
-        stage("Docker Build & Push"){
-            environment{
+        stage("Docker Build & Push") {
+            environment {
                 DOCKER_IMAGE = "srikanth2008/netflix:${BUILD_NUMBER}"
-                REGISTRY_CREDENTIALS = credentials('docker')
             }
-            steps{
-                script{
-                   withDockerRegistry(credentialsId: 'docker', toolName: 'docker'){   
-                       sh "docker build --build-arg TMDB_V3_API_KEY=2cca4d2a9091873a6e794133508785b9 -t ${Docker_IMAGE} ."
-                       sh "docker tag ${DOCKER_IMAGE} srikanth2008/netflix:${BUILD_NUMBER}"
-                       sh "docker push srikanth2008/netflix:${BUILD_NUMBER} "
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
+                        dir('Netflix/netflix-clone-application') {
+                            sh "docker build --build-arg TMDB_V3_API_KEY=2cca4d2a9091873a6e794133508785b9 -t ${DOCKER_IMAGE} ."
+                            sh "docker tag ${DOCKER_IMAGE} srikanth2008/netflix:${BUILD_NUMBER}"
+                            sh "docker push srikanth2008/netflix:${BUILD_NUMBER}"
+                        }
                     }
                 }
             }
         }
-        stage("TRIVY"){
-            steps{
-                sh "trivy image srikanth2008/netflix:${BUILD_NUMBER} > trivyimage.txt" 
+        stage("TRIVY") {
+            steps {
+                sh "trivy image srikanth2008/netflix:${BUILD_NUMBER} > trivyimage.txt"
             }
         }
-        stage('Deploy to container'){
-            steps{
+        stage('Deploy to container') {
+            steps {
                 sh "docker stop netflix || true"
                 sh "docker rm netflix || true"
-                sh "docker run -d -p 8081:80 --name netflix srikanth2008/netflix:${BUILD_NUMBER} "
+                sh "docker run -d -p 8081:80 --name netflix srikanth2008/netflix:${BUILD_NUMBER}"
             }
         }
-        stage('Update Deployment File'){
+        stage('Update Deployment File') {
             environment {
-                GIT_REPO_NAME = "netflix-project"
+                GIT_REPO_NAME = "Netflix"
                 GIT_USER_NAME = "iammasanam"
             }
-            steps{
+            steps {
                 withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
-                    sh '''
-                        git config user.email "masanamsrikanth7@gmail.com"
-                        git config user.name "Srikanth Masanam"
-                        sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" netflix-clone-project-manifests/deployment.yml
-                        git add netflix-project/netflix-clone-project-manifests/deployment.yml
-                        git commit -m "Update deployment image to version ${BUILD_NUMBER}"
-                        git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
-                    '''
+                    dir('Netflix/netflix-clone-project-manifests') {
+                        sh '''
+                            git config user.email "masanamsrikanth7@gmail.com"
+                            git config user.name "Srikanth Masanam"
+                            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" deployment.yml
+                            git add deployment.yml
+                            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+                            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                        '''
+                    }
                 }
             }
         }
-
     }
     post {
-     always {
-        emailext attachLog: true,
-            subject: "'${currentBuild.result}'",
-            body: "Project: ${env.JOB_NAME}<br/>" +
-                "Build Number: ${env.BUILD_NUMBER}<br/>" +
-                "URL: ${env.BUILD_URL}<br/>",
-            to: 'srikanthdevops97@gmail.com',                               
-            attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
+        always {
+            emailext attachLog: true,
+                    subject: "'${currentBuild.result}'",
+                    body: "Project: ${env.JOB_NAME}<br/>" +
+                            "Build Number: ${env.BUILD_NUMBER}<br/>" +
+                            "URL: ${env.BUILD_URL}<br/>",
+                    to: 'srikanthdevops97@gmail.com',
+                    attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
         }
     }
 }
