@@ -16,7 +16,7 @@ pipeline {
         stage('Checkout from Git') {
             steps {
                 sh 'echo passed'
-                git branch: 'main', url: 'https://github.com/iammasanam/Netflix'
+                git branch: 'main', url: 'https://github.com/iammasanam/Netflix.git'
             }
         }
         stage("Sonarqube Analysis ") {
