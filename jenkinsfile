@@ -22,13 +22,7 @@ pipeline {
         stage("Sonarqube Analysis ") {
             steps {
                 withSonarQubeEnv('sonar-server') {
-                    sh ''' 
-                        sonar-scanner \
-                        -Dsonar.projectKey=Netflix \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=http://52.6.103.177:9000 \
-                        -Dsonar.login=sqp_4a94eef1888a148b382c23e26b5177760c5b78db
-                    '''
+                    sh "$SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Netflix -Dsonar.projectKey=Netflix"
                 }
             }
         }
