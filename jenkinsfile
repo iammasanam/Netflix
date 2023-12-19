@@ -37,7 +37,7 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 script {
-                    waitForQualityGate(credentialsId: 'Sonar-token', allowUnstable: true)
+                    waitForQualityGate server: 'sonar-server', task: 'AYyC8ynLQahYKj8PkQ5L'
                 }
             }
         }
@@ -52,8 +52,8 @@ pipeline {
 
         stage('OWASP Dependency Scanning') {
             steps {
-                dependencyCheck additionalArguments: '--scan . --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/*.dependency-check-report.xml'
+                dependencyCheck additionalArguments: '--scan . --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check', projectName: 'Netflix'
+                dependencyCheckPublisher pattern: '**/*.dependency-check-report.xml', projectName: 'Netflix'
             }
         }
 
