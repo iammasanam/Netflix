@@ -37,7 +37,7 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 script {
-                    waitForQualityGate(credentialsId: 'Sonar-token', unstable: true)
+                    waitForQualityGate(credentialsId: 'Sonar-token', allowUnstable: true)
                 }
             }
         }
@@ -53,13 +53,13 @@ pipeline {
         stage('OWASP Dependency Scanning') {
             steps {
                 dependencyCheck additionalArguments: '--scan . --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+                dependencyCheckPublisher reportFiles: '**/*.dependency-check-report.xml'
             }
         }
 
         stage('Trivy File System Scanning') {
             steps {
-                sh 'trivy fs . > trivyfs.txt'
+                sh 'trivy fs . > "trivyfs.txt"'
             }
         }
 
@@ -82,7 +82,7 @@ pipeline {
 
         stage('Trivy Image Scanning') {
             steps {
-                sh "trivy image srikanth2008/netflix:${DOCKER_IMAGE_TAG} > trivyimage.txt"
+                sh "trivy image srikanth2008/netflix:${DOCKER_IMAGE_TAG} > \"trivyimage.txt\""
             }
         }
 
