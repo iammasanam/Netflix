@@ -52,8 +52,8 @@ pipeline {
 
         stage('OWASP Dependency Scanning') {
             steps {
-                dependencyCheck additionalArguments: '--scan . --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check', projectName: 'Netflix'
-                dependencyCheckPublisher pattern: '**/*.dependency-check-report.xml', projectName: 'Netflix'
+                dependencyCheck additionalArguments: '--scan . --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+                dependencyCheckPublisher pattern: '**/*.dependency-check-report.xml'
             }
         }
 
