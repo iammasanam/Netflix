@@ -7,93 +7,76 @@ pipeline {
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
     }
-
-    parameters {
-        string(name: 'DOCKER_IMAGE_TAG', defaultValue: 'latest', description: 'Docker image tag to use')
-    }
-
     stages {
-        stage('Clean Workspace') {
+        stage('clean workspace') {
             steps {
                 cleanWs()
             }
         }
-
         stage('Checkout from Git') {
             steps {
                 sh 'echo passed'
                 git branch: 'main', url: 'https://github.com/iammasanam/Netflix'
             }
         }
-
-        stage('SonarQube Analysis') {
+        stage("Sonarqube Analysis ") {
             steps {
                 withSonarQubeEnv('sonar-server') {
                     sh "$SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Netflix -Dsonar.projectKey=Netflix"
                 }
             }
         }
-
-        stage('Quality Gate') {
+        stage("quality gate") {
             steps {
                 script {
-                    waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token'
+                    waitForQualityGate(credentialsId: 'Sonar-token', unstable: 1)
                 }
             }
         }
-
         stage('Install Dependencies') {
             steps {
-                dir('Netflix') {
-                    sh 'npm install'
-                }
+                sh "npm install"
             }
         }
-
-        stage('OWASP Dependency Scanning') {
+        stage('OWASP FS SCAN') {
             steps {
                 dependencyCheck additionalArguments: '--scan . --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/*.dependency-check-report.xml'
+                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
-
-        stage('Trivy File System Scanning') {
+        stage('TRIVY FS SCAN') {
             steps {
-                sh 'trivy fs . > "trivyfs.txt"'
+                sh "trivy fs . > trivyfs.txt"
             }
         }
-
-        stage('Docker Build and Push') {
+        stage("Docker Build & Push") {
             environment {
-                DOCKER_IMAGE = "srikanth2008/netflix:${DOCKER_IMAGE_TAG}"
+                DOCKER_IMAGE = "srikanth2008/netflix:${BUILD_NUMBER}"
             }
             steps {
                 script {
                     withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
-                        dir('Netflix') {
+                        dir('Netflix/netflix-clone-application') {
                             sh "docker build --build-arg TMDB_V3_API_KEY=2cca4d2a9091873a6e794133508785b9 -t ${DOCKER_IMAGE} ."
-                            sh "docker tag ${DOCKER_IMAGE} srikanth2008/netflix:${DOCKER_IMAGE_TAG}"
-                            sh "docker push srikanth2008/netflix:${DOCKER_IMAGE_TAG}"
+                            sh "docker tag ${DOCKER_IMAGE} srikanth2008/netflix:${BUILD_NUMBER}"
+                            sh "docker push srikanth2008/netflix:${BUILD_NUMBER}"
                         }
                     }
                 }
             }
         }
-
-        stage('Trivy Image Scanning') {
+        stage("TRIVY") {
             steps {
-                sh "trivy image srikanth2008/netflix:${DOCKER_IMAGE_TAG} > \"trivyimage.txt\""
+                sh "trivy image srikanth2008/netflix:${BUILD_NUMBER} > trivyimage.txt"
             }
         }
-
-        stage('Deploy to Container') {
+        stage('Deploy to container') {
             steps {
-                sh 'docker stop netflix || true'
-                sh 'docker rm netflix || true'
-                sh "docker run -d -p 8081:80 --name netflix srikanth2008/netflix:${DOCKER_IMAGE_TAG}"
+                sh "docker stop netflix || true"
+                sh "docker rm netflix || true"
+                sh "docker run -d -p 8081:80 --name netflix srikanth2008/netflix:${BUILD_NUMBER}"
             }
         }
-
         stage('Update Deployment File') {
             environment {
                 GIT_REPO_NAME = "Netflix"
@@ -105,9 +88,9 @@ pipeline {
                         sh '''
                             git config user.email "masanamsrikanth7@gmail.com"
                             git config user.name "Srikanth Masanam"
-                            sed -i "s/replaceImageTag/${DOCKER_IMAGE_TAG}/g" deployment.yml
+                            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" deployment.yml
                             git add deployment.yml
-                            git commit -m "Update deployment image to version ${DOCKER_IMAGE_TAG}"
+                            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
                             git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
                         '''
                     }
@@ -115,14 +98,13 @@ pipeline {
             }
         }
     }
-
     post {
         always {
             emailext attachLog: true,
                     subject: "'${currentBuild.result}'",
-                    body: "Project: ${env.JOB_NAME}\n" +
-                            "Build Number: ${env.BUILD_NUMBER}\n" +
-                            "URL: ${env.BUILD_URL}\n",
+                    body: "Project: ${env.JOB_NAME}<br/>" +
+                            "Build Number: ${env.BUILD_NUMBER}<br/>" +
+                            "URL: ${env.BUILD_URL}<br/>",
                     to: 'srikanthdevops97@gmail.com',
                     attachmentsPattern: 'trivyfs.txt,trivyimage.txt'
         }
