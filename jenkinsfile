@@ -59,5 +59,19 @@ pipeline {
                 sh "trivy fs . > trivyfs.txt"
             }
         }
+        stage("Docker Build & Push") {
+            environment {
+                DOCKER_IMAGE = "srikanth2008/netflix:${BUILD_NUMBER}"
+            }
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
+                            sh "docker build --build-arg TMDB_V3_API_KEY=2cca4d2a9091873a6e794133508785b9 -t ${DOCKER_IMAGE} ."
+                            sh "docker tag ${DOCKER_IMAGE} srikanth2008/netflix:${BUILD_NUMBER}"
+                            sh "docker push srikanth2008/netflix:${BUILD_NUMBER}"
+                    }
+                }
+            }
+        }
     }
 }
