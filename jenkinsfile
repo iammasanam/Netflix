@@ -73,5 +73,10 @@ pipeline {
                 }
             }
         }
+        stage("TRIVY") {
+            steps {
+                sh "trivy image srikanth2008/netflix:${BUILD_NUMBER} > trivyimage.txt"
+            }
+        }
     }
 }
