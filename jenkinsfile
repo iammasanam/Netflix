@@ -36,29 +36,34 @@ pipeline {
                 }
             }
         }
+
         stage("quality gate") {
             steps {
                 script {
-                    waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token', task: 'AYyC8ynLQahYKj8PkQ5L'
+                    waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token', task: 'AYyC8ynLQahYKj8PkQ5T'
                 }
             }
         }
+
         stage('Install Dependencies') {
             steps {
-                 sh "npm install"
+                sh "npm install"
             }
         }
+
         stage('OWASP FS SCAN') {
             steps {
                 dependencyCheck additionalArguments: '--scan . --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
+
         stage('TRIVY FS SCAN') {
             steps {
                 sh "trivy fs . > trivyfs.txt"
             }
         }
+
         stage("Docker Build & Push") {
             environment {
                 DOCKER_IMAGE = "srikanth2008/netflix:${BUILD_NUMBER}"
@@ -66,23 +71,44 @@ pipeline {
             steps {
                 script {
                     withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
-                            sh "docker build --build-arg TMDB_V3_API_KEY=2cca4d2a9091873a6e794133508785b9 -t ${DOCKER_IMAGE} ."
-                            sh "docker tag ${DOCKER_IMAGE} srikanth2008/netflix:${BUILD_NUMBER}"
-                            sh "docker push srikanth2008/netflix:${BUILD_NUMBER}"
+                        sh "docker build --build-arg TMDB_V3_API_KEY=2cca4d2a9091873a6e794133508785b9 -t ${DOCKER_IMAGE} ."
+                        sh "docker tag ${DOCKER_IMAGE} srikanth2008/netflix:${BUILD_NUMBER}"
+                        sh "docker push srikanth2008/netflix:${BUILD_NUMBER}"
+                        sh "docker rmi ${DOCKER_IMAGE}"
                     }
                 }
             }
         }
-        stage("TRIVY") {
+
+        stage('TRIVY') {
             steps {
                 sh "trivy image srikanth2008/netflix:${BUILD_NUMBER} > trivyimage.txt"
             }
         }
+
+        stage('Stop and Remove Docker Container') {
+            steps {
+                script {
+                    def dockerPsOutput = sh(script: 'docker ps', returnStdout: true).trim()
+                    def containerId = dockerPsOutput.tokenize('\n').find { it.contains('srikanth2008/netflix') }?.tokenize()[0]
+                    if (containerId) {
+                        sh "docker stop $containerId"
+                        echo "Container with ID $containerId stopped successfully."
+                        sh "docker rm $containerId"
+                        echo "Container with ID $containerId removed permanently."
+                    } else {
+                        echo "Container not found or already stopped."
+                    }
+                }
+            }
+        }
+
         stage('Deploy to container') {
             steps {
                 sh "docker run -d -p 8081:80 --name netflix srikanth2008/netflix:${BUILD_NUMBER}"
             }
         }
+
         stage('Update Deployment File') {
             environment {
                 GIT_REPO_NAME = "Netflix"
@@ -92,9 +118,9 @@ pipeline {
                 withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                     dir('Manifests-Repo') {
                         sh '''
+                            git pull origin main
                             git config user.email "masanamsrikanth7@gmail.com"
                             git config user.name "iammasanam"
-                            git pull orgin main
                             sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" deployment.yml
                             git add deployment.yml
                             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
