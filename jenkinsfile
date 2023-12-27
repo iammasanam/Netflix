@@ -83,5 +83,26 @@ pipeline {
                 sh "docker run -d -p 8081:80 --name netflix srikanth2008/netflix:${BUILD_NUMBER}"
             }
         }
+        stage('Update Deployment File') {
+            environment {
+                GIT_REPO_NAME = "Netflix"
+                GIT_USER_NAME = "iammasanam"
+            }
+            steps {
+                withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
+                    dir('Manifests-Repo') {
+                        sh '''
+                            git config user.email "masanamsrikanth7@gmail.com"
+                            git config user.name "iammasanam"
+                            git pull orgin main
+                            sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" deployment.yml
+                            git add deployment.yml
+                            git commit -m "Update deployment image to version ${BUILD_NUMBER}"
+                            git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
+                        '''
+                    }
+                }
+            }
+        }
     }
 }
