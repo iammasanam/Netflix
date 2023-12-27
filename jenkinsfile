@@ -117,6 +117,8 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'github', variable: 'GITHUB_TOKEN')]) {
                     dir('Manifests-Repo') {
+                        echo "Updating Deployment File"
+                        script {
                         sh '''
                             git pull origin main
                             git config user.email "masanamsrikanth7@gmail.com"
@@ -126,6 +128,7 @@ pipeline {
                             git commit -m "Update deployment image to version ${BUILD_NUMBER}"
                             git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
                         '''
+                        }
                     }
                 }
             }
