@@ -1,10 +1,10 @@
 pipeline {
     agent any
 
-    // Define tools and environment variables
     tools {
         jdk 'jdk17'
         nodejs 'node16'
+        // Add any other tools you need
     }
 
     environment {
@@ -24,7 +24,7 @@ pipeline {
 
         stage('Checkout from Git') {
             steps {
-                sh 'echo "Passed"'
+                echo "Passed"
                 git branch: 'main', url: 'https://github.com/iammasanam/Netflix'
             }
         }
@@ -37,7 +37,7 @@ pipeline {
             }
         }
 
-        stage("quality gate") {
+        stage("Quality Gate") {
             steps {
                 script {
                     waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token', task: 'AYyC8ynLQahYKj8PkQ5T'
@@ -130,12 +130,12 @@ pipeline {
                         echo "Updating Deployment File"
                         script {
                             sh '''
+                                git status
+                                git add .
+                                git commit -m "Update deployment image to version ${BUILD_NUMBER}"
                                 git pull origin main
                                 git config user.email "masanamsrikanth7@gmail.com"
                                 git config user.name "iammasanam"
-                                sed -i "s/replaceImageTag/${BUILD_NUMBER}/g" deployment.yml
-                                git add deployment.yml
-                                git commit -m "Update deployment image to version ${BUILD_NUMBER}"
                                 git push https://${GITHUB_TOKEN}@github.com/${GIT_USER_NAME}/${GIT_REPO_NAME} HEAD:main
                             '''
                         }
