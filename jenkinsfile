@@ -64,6 +64,32 @@ pipeline {
             }
         }
 
+        stage('Stop and Remove Docker Container') {
+            steps {
+                script {
+                    def dockerPsOutput = sh(script: 'docker ps -q --filter "name=netflix"', returnStdout: true).trim()
+            
+                    if (dockerPsOutput) {
+                        sh "docker stop $dockerPsOutput"
+                        echo "Container with ID $dockerPsOutput stopped successfully."
+                        sh "docker rm $dockerPsOutput"
+                        echo "Container with ID $dockerPsOutput removed permanently."
+                    } else {
+                        echo "Container not found or already stopped."
+                    }
+
+                    def dockerImagesOutput = sh(script: 'docker images -q srikanth2008/netflix', returnStdout: true).trim()
+            
+                    if (dockerImagesOutput) {
+                        sh "docker rmi $dockerImagesOutput"
+                        echo "Docker images removed."
+                    } else {
+                        echo "No Docker images found."
+                    }
+                }
+            }
+        }
+
         stage("Docker Build & Push") {
             environment {
                 DOCKER_IMAGE = "srikanth2008/netflix:${BUILD_NUMBER}"
