@@ -89,6 +89,7 @@ pipeline {
         stage('Stop and Remove Docker Container') {
             steps {
                 script {
+                    // Stop and remove running container
                     def dockerPsOutput = sh(script: 'docker ps', returnStdout: true).trim()
                     def containerId = dockerPsOutput.tokenize('\n').find { it.contains('srikanth2008/netflix') }?.tokenize()[0]
                     if (containerId) {
@@ -98,6 +99,14 @@ pipeline {
                         echo "Container with ID $containerId removed permanently."
                     } else {
                         echo "Container not found or already stopped."
+                    }
+
+                    // Remove Docker images
+                    def dockerImagesOutput = sh(script: 'docker images', returnStdout: true).trim()
+                    def imageIds = dockerImagesOutput.tokenize('\n').findAll { it.contains('srikanth2008/netflix') }
+                    imageIds.each { imageId ->
+                        sh "docker rmi $imageId"
+                        echo "Docker image with ID $imageId removed."
                     }
                 }
             }
