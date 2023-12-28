@@ -89,24 +89,24 @@ pipeline {
         stage('Stop and Remove Docker Container') {
             steps {
                 script {
-                    // Stop and remove running container
-                    def dockerPsOutput = sh(script: 'docker ps', returnStdout: true).trim()
-                    def containerId = dockerPsOutput.tokenize('\n').find { it.contains('srikanth2008/netflix') }?.tokenize()[0]
-                    if (containerId) {
-                        sh "docker stop $containerId"
-                        echo "Container with ID $containerId stopped successfully."
-                        sh "docker rm $containerId"
-                        echo "Container with ID $containerId removed permanently."
+                    def dockerPsOutput = sh(script: 'docker ps -q --filter "name=netflix"', returnStdout: true).trim()
+            
+                    if (dockerPsOutput) {
+                        sh "docker stop $dockerPsOutput"
+                        echo "Container with ID $dockerPsOutput stopped successfully."
+                        sh "docker rm $dockerPsOutput"
+                        echo "Container with ID $dockerPsOutput removed permanently."
                     } else {
                         echo "Container not found or already stopped."
                     }
 
-                    // Remove Docker images
-                    def dockerImagesOutput = sh(script: 'docker images', returnStdout: true).trim()
-                    def imageIds = dockerImagesOutput.tokenize('\n').findAll { it.contains('srikanth2008/netflix') }
-                    imageIds.each { imageId ->
-                        sh "docker rmi $imageId"
-                        echo "Docker image with ID $imageId removed."
+                    def dockerImagesOutput = sh(script: 'docker images -q srikanth2008/netflix', returnStdout: true).trim()
+            
+                    if (dockerImagesOutput) {
+                        sh "docker rmi $dockerImagesOutput"
+                        echo "Docker images removed."
+                    } else {
+                        echo "No Docker images found."
                     }
                 }
             }
