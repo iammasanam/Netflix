@@ -67,27 +67,27 @@ pipeline {
         stage('Stop and Remove Docker Container') {
             steps {
                 script {
-                    def dockerPsOutput = sh(script: 'docker ps', returnStdout: true).trim()
-            
-                    if (dockerPsOutput.contains('srikanth2008/netflix')) {
-                        def containerId = dockerPsOutput.tokenize('\n').find { it.contains('srikanth2008/netflix') }?.tokenize()[0]
-                        sh "docker stop $containerId"             
+                    def containerName = "netflix"
+
+                    def dockerPsOutput = sh(script: 'docker ps -a', returnStdout: true).trim()
+                    def containerId = dockerPsOutput.tokenize('\n').find { it.contains(containerName) }?.tokenize()[0]
+                    if (containerId) {
+                        sh "docker stop $containerId"
                         echo "Container with ID $containerId stopped successfully."
-                
-                        sh "docker rm $containerId"              
+                        sh "docker rm -f $containerId"
                         echo "Container with ID $containerId removed permanently."
                     } else {
-                        echo "Container is not running or not found."
+                        echo "Container not found or already stopped."
                     }
-                    def dockerImagesOutput = sh(script: 'docker images -q srikanth2008/netflix', returnStdout: true).trim()
+
+                    def dockerImagesOutput = sh(script: "docker images -q srikanth2008/netflix:${BUILD_NUMBER}", returnStdout: true).trim()
                     if (dockerImagesOutput) {
                         sh "docker rmi -f $dockerImagesOutput"
                         echo "Docker Images removed"
-                    }
-                    else {
+                    } else {
                         echo "No Docker Images found"
                     }
-                }    
+                }
             }
         }
 
@@ -144,6 +144,7 @@ pipeline {
             }
         }
     }
+
     post {
         always {
             emailext attachLog: true,
